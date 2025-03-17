@@ -1,0 +1,331 @@
+version: '3.8'
+
+services:
+
+  # KRaft Controller + Broker (1) Node
+  kafka-controller:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka-controller
+    container_name: kafka-controller
+    ports:
+      - "9090:9090"
+      - "29090:29090"
+    environment:
+      # Required for KRaft
+      CLUSTER_ID: "LrGDGajHRimtibWSSRX4uA"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'controller,broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_OPTS: "-Dkafka.kraft.cluster.id=LrGDGajHRimtibWSSRX4uA"
+      # Listeners
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-controller:29090,PLAINTEXT_HOST://0.0.0.0:9090,CONTROLLER://:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-controller:29090,PLAINTEXT_HOST://localhost:9090'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      # Other settings
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-controller-data:/var/lib/kafka/data
+    command: 
+      - bash
+      - -c
+      - |
+        echo "Kafka KRaft mode cluster ID: LrGDGajHRimtibWSSRX4uA"
+        echo "Formatting storage directories..."
+        kafka-storage format -t LrGDGajHRimtibWSSRX4uA -c /etc/kafka/kraft/server.properties
+        echo "Starting Kafka controller+broker node (1)..."
+        /etc/confluent/docker/run
+    healthcheck:
+      test: nc -z kafka-controller 29090 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+
+  # Broker (2) Node
+  kafka1:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka1
+    container_name: kafka1
+    depends_on:
+      kafka-controller:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # Required for KRaft
+      CLUSTER_ID: "LrGDGajHRimtibWSSRX4uA"
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_OPTS: "-Dkafka.kraft.cluster.id=LrGDGajHRimtibWSSRX4uA"
+      # Listeners
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      # Other settings
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+    command: 
+      - bash
+      - -c
+      - |
+        echo "Formatting storage with cluster ID: LrGDGajHRimtibWSSRX4uA"
+        kafka-storage format -t LrGDGajHRimtibWSSRX4uA -c /etc/kafka/kraft/server.properties
+        echo "Starting Kafka broker node (2)..."
+        /etc/confluent/docker/run
+    healthcheck:
+      test: nc -z kafka1 29092 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  # Broker (3) Node
+  kafka2:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka2
+    container_name: kafka2
+    depends_on:
+      kafka-controller:
+        condition: service_healthy
+    ports:
+      - "9093:9093"
+      - "29093:29093"
+    environment:
+      # Required for KRaft
+      CLUSTER_ID: "LrGDGajHRimtibWSSRX4uA"
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_OPTS: "-Dkafka.kraft.cluster.id=LrGDGajHRimtibWSSRX4uA"
+      # Listeners
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka2:29093,PLAINTEXT_HOST://0.0.0.0:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka2:29093,PLAINTEXT_HOST://localhost:9093'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      # Other settings
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka2-data:/var/lib/kafka/data
+    command: 
+      - bash
+      - -c
+      - |
+        echo "Formatting storage with cluster ID: LrGDGajHRimtibWSSRX4uA"
+        kafka-storage format -t LrGDGajHRimtibWSSRX4uA -c /etc/kafka/kraft/server.properties
+        echo "Starting Kafka broker node (3)..."
+        /etc/confluent/docker/run
+    healthcheck:
+      test: nc -z kafka2 29093 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  # Initailization script
+  kafka-init:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: kafka-init
+    depends_on:
+      kafka-controller:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      echo 'Waiting for Kafka brokers to be fully ready...'
+      sleep 10
+      
+      echo 'Checking Kafka connection...'
+      kafka-topics --bootstrap-server kafka-controller:29090,kafka1:29092,kafka2:29093 --list
+      
+      echo -e 'Creating kafka topics'
+
+      echo 'Creating _schemas topic with proper configuration...'
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic _schemas --partitions 1 --replication-factor 3 --config cleanup.policy=compact
+      
+      echo 'Creating Control Center required topics...'
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic _confluent-command --partitions 1 --replication-factor 3
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic _confluent-metrics --partitions 1 --replication-factor 3
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic _confluent-monitoring --partitions 1 --replication-factor 3
+      
+      echo 'Creating sample topics...'
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic sample.first --partitions 3 --replication-factor 3
+      kafka-topics --bootstrap-server kafka-controller:29090 --create --if-not-exists --topic sample.second --partitions 3 --replication-factor 3
+      
+      echo -e 'Waiting for topic creation to propagate...'
+      sleep 5
+      
+      echo -e 'Successfully creatd the following topics:'
+      kafka-topics --bootstrap-server kafka-controller:29090 --list --exclude-internal
+      
+      echo -e 'Details of _schemas topic:'
+      kafka-topics --bootstrap-server kafka-controller:29090 --describe --topic _schemas
+      "
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.8.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-controller:29090,kafka1:29092,kafka2:29093
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 3
+      SCHEMA_REGISTRY_DEBUG: "true"
+      SCHEMA_REGISTRY_KAFKASTORE_TIMEOUT_MS: 15000
+      SCHEMA_REGISTRY_KAFKASTORE_INIT_TIMEOUT_MS: 90000
+      SCHEMA_REGISTRY_AVRO_COMPATIBILITY_LEVEL: "none"
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.8.0
+    hostname: kafka-connect
+    container_name: kafka-connect
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      schema-registry:
+        condition: service_started
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka-controller:29090,kafka1:29092,kafka2:29093
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_PRODUCER_RETRIES: 10
+      CONNECT_PRODUCER_RETRY_BACKOFF_MS: 500
+      CONNECT_CONSUMER_MAX_POLL_RECORDS: 500
+      CONNECT_CONSUMER_MAX_POLL_INTERVAL_MS: 300000
+      CONNECT_CONSUMER_SESSION_TIMEOUT_MS: 10000
+      CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS: 3000
+      CONNECT_CONSUMER_REQUEST_TIMEOUT_MS: 60000
+    restart: unless-stopped
+
+  ksqldb-server:
+    image: confluentinc/cp-ksqldb-server:7.8.0
+    hostname: ksqldb-server
+    container_name: ksqldb-server
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      schema-registry:
+        condition: service_started
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_CONFIG_DIR: "/etc/ksql"
+      KSQL_BOOTSTRAP_SERVERS: kafka-controller:29090,kafka1:29092,kafka2:29093
+      KSQL_HOST_NAME: ksqldb-server
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_CACHE_MAX_BYTES_BUFFERING: 0
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KSQL_KSQL_CONNECT_URL: http://kafka-connect:8083
+      KSQL_KSQL_SERVICE_ID: "ksqldb-cluster"
+      KSQL_KSQL_HIDDEN_TOPICS: '^_.*'
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+      KSQL_PRODUCER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor"
+      KSQL_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
+      KSQL_KSQL_STREAMS_REPLICATION_FACTOR: 3
+      KSQL_KSQL_INTERNAL_TOPIC_REPLICAS: 3
+      KSQL_STREAMS_NUM_STREAM_THREADS: 1
+      KSQL_STREAMS_PRODUCER_RETRIES: 10
+      KSQL_STREAMS_PRODUCER_RETRY_BACKOFF_MS: 500
+      KSQL_STREAMS_CONSUMER_SESSION_TIMEOUT_MS: 30000
+    restart: unless-stopped
+
+  ksqldb-cli:
+    image: confluentinc/cp-ksqldb-cli:7.8.0
+    container_name: ksqldb-cli
+    depends_on:
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.8.0
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      schema-registry:
+        condition: service_started
+      kafka-connect:
+        condition: service_started
+      ksqldb-server:
+        condition: service_started
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka-controller:29090,kafka1:29092,kafka2:29093
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONTROL_CENTER_KAFKA_CLUSTER_BOOTSTRAP_SERVERS: kafka-controller:29090,kafka1:29092,kafka2:29093
+      CONTROL_CENTER_CONNECT_CONNECT_CLUSTER: http://kafka-connect:8083
+      CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: /connectors
+      CONTROL_CENTER_KSQL_KSQLDB_URL: "http://ksqldb-server:8088"
+      CONTROL_CENTER_KSQL_KSQLDB_ADVERTISED_URL: "http://localhost:8088"
+      CONTROL_CENTER_REPLICATION_FACTOR: 3
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_REPLICATION: 3
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: 3
+      CONTROL_CENTER_METRICS_TOPIC_REPLICATION: 3
+      CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS: 3
+      CONTROL_CENTER_STREAMS_CONSUMER_REQUEST_TIMEOUT_MS: 960000
+      CONTROL_CENTER_STREAMS_PRODUCER_REQUEST_TIMEOUT_MS: 30000
+      CONTROL_CENTER_STREAMS_PRODUCER_RETRIES: 10
+      CONTROL_CENTER_STREAMS_PRODUCER_CONFLUENT_BATCH_EXPIRY_MS: 30000
+      CONTROL_CENTER_INTERNAL_TOPICS_REPLICATION_AFTER_STARTUP: "true"
+      PORT: 9021
+    restart: unless-stopped
+
+volumes:
+  kafka-controller-data:
+  kafka1-data:
+  kafka2-data:
